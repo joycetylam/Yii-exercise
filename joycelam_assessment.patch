@@ -1,0 +1,163 @@
+From d774049aec24ee31b19052c3211ea11d564310fa Mon Sep 17 00:00:00 2001
+From: Joyce Lam <joycetylam2005@hotmail.com>
+Date: Thu, 19 Nov 2015 17:37:30 -0800
+Subject: [PATCH] ompleted assessment
+
+---
+ ASSESSMENT.md                        | 36 ++++++++++++++++++++++++++++--------
+ www/assessment/models/Sales.php      |  2 ++
+ www/assessment/views/sales/_form.php |  2 +-
+ www/assessment/views/stores/view.php |  7 ++++---
+ 4 files changed, 35 insertions(+), 12 deletions(-)
+
+diff --git a/ASSESSMENT.md b/ASSESSMENT.md
+index d2412db..1eaccf6 100644
+--- a/ASSESSMENT.md
++++ b/ASSESSMENT.md
+@@ -14,49 +14,69 @@ SELECT * FROM fruit;
+ #### Question 1:
+ Which fruit sold more units, apples or oranges?
+ ```sql
+-
++SELECT f.type, SUM(s.quantity) total
++FROM fruit f INNER JOIN sales s ON s.fkfruit_id=f.fruit_id
++GROUP BY f.type;
++// Apple sold more units.
+ ```
+ 
+ #### Question 2:
+ Select the varieties of apples costing at least $2.00.
+ ```sql
+-
++SELECT variety
++FROM fruit
++WHERE type='apple' AND cost >= 2;
+ ```
+ 
+ #### Question 3:
+ Make a sales report listing store ID, store name, and total money from sales. Order stores from most money to least.
+ ```sql
+-
++SELECT t.store_id, t.name, SUM(f.cost*s.quantity) Total 
++FROM fruit f JOIN sales s ON s.fkfruit_id = f.fruit_id JOIN stores t
++WHERE t.store_id = s.fkstore_id
++GROUP BY t.name 
++ORDER BY Total DESC;
+ ```
+ 
+ #### Question 4:
+ Update the price of mandarin oranges from $1.99 to $2.25.
+ ```sql
+-
++UPDATE fruit
++SET cost=2.25
++WHERE type='orange' AND variety ='mandarin';
+ ```
+ 
+ #### Question 5:
+ Insert a new type of fruit: a cameo apple costing $1.75
+ ```sql
+-
++INSERT INTO fruit(fruit_id, type, variety, cost)
++VALUES (12, 'apple', 'cameo', 1.75);
+ ```
+ 
+ #### Question 6:
+ Identify the fruits that have sold less than 20 units.
+ ```sql
+-
++SELECT r.fruit_id, r.type, r.variety
++FROM (SELECT f.fruit_id, f.type, f.variety, SUM(s.quantity) total
++	FROM fruit f LEFT JOIN sales s ON s.fkfruit_id=f.fruit_id 
++		GROUP BY f.fruit_id) r
++WHERE r.total < 20 OR r.total IS NULL;
++;
+ ```
+ 
+ #### Question 7:
+ Add a new decimal column to the sales table called *discount* that does not allow NULL values and set the default value to 0.00.
+ ```sql
+-
++ALTER TABLE sales
++ADD discount decimal(5,2) NOT NULL DEFAULT '0.00';
+ ```
+ 
+ #### Question 8:
+ Update the values for the *discount* field with random values between 0 and 1.
+ ```sql
+-
++UPDATE sales
++SET discount = rand(9) 
++WHERE discount = 0.00;
+ ```
+ 
+ ## PHP
+diff --git a/www/assessment/models/Sales.php b/www/assessment/models/Sales.php
+index fa59622..0938a40 100644
+--- a/www/assessment/models/Sales.php
++++ b/www/assessment/models/Sales.php
+@@ -33,6 +33,7 @@ class Sales extends \yii\db\ActiveRecord
+     {
+         return [
+             [['fkstore_id', 'fkfruit_id', 'quantity'], 'integer'],
++			[['discount'], 'double'],
+             [['date'], 'safe']
+         ];
+     }
+@@ -48,6 +49,7 @@ class Sales extends \yii\db\ActiveRecord
+             'fkfruit_id' => 'Fkfruit ID',
+             'quantity' => 'Quantity',
+             'date' => 'Date',
++			'discount' => 'Discount',
+         ];
+     }
+ 
+diff --git a/www/assessment/views/sales/_form.php b/www/assessment/views/sales/_form.php
+index b3fc415..1be38ed 100644
+--- a/www/assessment/views/sales/_form.php
++++ b/www/assessment/views/sales/_form.php
+@@ -24,7 +24,7 @@ use yii\widgets\ActiveForm;
+               ArrayHelper::map($fruit, 'fruit_id', 'variety', 'type')) ?>
+         <div class="help-block"></div>
+     </div>
+-
++	<?= $form->field($model, 'discount')->textInput() ?>
+     <?= $form->field($model, 'quantity')->textInput() ?>
+ 
+     <div class="form-group">
+diff --git a/www/assessment/views/stores/view.php b/www/assessment/views/stores/view.php
+index 46f205f..895e0c2 100644
+--- a/www/assessment/views/stores/view.php
++++ b/www/assessment/views/stores/view.php
+@@ -36,7 +36,7 @@ $this->params['breadcrumbs'][] = $this->title;
+         ],
+     ]) ?>
+ 
+-    <?= GridView:widget([
++    <?= GridView::widget([
+         'dataProvider' => $sales,
+         'columns' => [
+             ['class' => 'yii\grid\SerialColumn'],
+@@ -54,16 +54,17 @@ $this->params['breadcrumbs'][] = $this->title;
+                 'attribute' => 'cost',
+                 'value' => function ($model) { return '$' . $model->fruit->cost; },
+             ],
++			'discount',
+             'quantity',
+             [
+                 'attribute' => 'total',
+-                'value' => function ($model) { return '$' . number_format($model->fruit->cost * $model->quantity, 2); },
++                'value' => function ($model) { return '$' . number_format(($model->fruit->cost - $model->discount) * $model->quantity, 2); },
+             ],
+             [
+                 'attribute' => 'date',
+                 'value' => function ($model) { return date("Y-m-d", strtotime($model->date)); },
+             ],
+         ],
+-    ]); ?>
++    ]) ?>
+     <?= Html::a('Add Sale', ['sales/create', 'store' => $store->store_id], ['class' => 'btn btn-primary']) ?>
+ </div>
+-- 
+2.6.1.windows.1
+
